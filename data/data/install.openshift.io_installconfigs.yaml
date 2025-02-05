@@ -1164,6 +1164,15 @@ spec:
                                 maxLength: 80
                                 pattern: ^[a-zA-Z0-9]([-_a-zA-Z0-9]*[a-zA-Z0-9])?$
                                 type: string
+                              provisioningMode:
+                                description: |-
+                                  provisioningMode specifies the provisioning type to be used by this vSphere data disk.
+                                  If not set, the setting will be provided by the default storage policy.
+                                enum:
+                                - Thin
+                                - Thick
+                                - EagerlyZeroed
+                                type: string
                               sizeGiB:
                                 description: |-
                                   sizeGiB is the size of the disk in GiB.
@@ -2261,6 +2270,15 @@ spec:
                               example: images_1
                               maxLength: 80
                               pattern: ^[a-zA-Z0-9]([-_a-zA-Z0-9]*[a-zA-Z0-9])?$
+                              type: string
+                            provisioningMode:
+                              description: |-
+                                provisioningMode specifies the provisioning type to be used by this vSphere data disk.
+                                If not set, the setting will be provided by the default storage policy.
+                              enum:
+                              - Thin
+                              - Thick
+                              - EagerlyZeroed
                               type: string
                             sizeGiB:
                               description: |-
@@ -5091,6 +5109,15 @@ spec:
                               example: images_1
                               maxLength: 80
                               pattern: ^[a-zA-Z0-9]([-_a-zA-Z0-9]*[a-zA-Z0-9])?$
+                              type: string
+                            provisioningMode:
+                              description: |-
+                                provisioningMode specifies the provisioning type to be used by this vSphere data disk.
+                                If not set, the setting will be provided by the default storage policy.
+                              enum:
+                              - Thin
+                              - Thick
+                              - EagerlyZeroed
                               type: string
                             sizeGiB:
                               description: |-
