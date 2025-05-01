@@ -33,6 +33,7 @@ func New(logger logrus.FieldLogger, metadata *installertypes.ClusterMetadata) (p
 	// way is for all vcenter data to be part of the vcenters array.
 	if len(metadata.VSphere.VCenters) > 0 {
 		for _, vsphere := range metadata.VSphere.VCenters {
+			logger.Info(fmt.Sprintf("Creating client for vCenter %v for destroy", vsphere.VCenter))
 			client, err := NewClient(vsphere.VCenter, vsphere.Username, vsphere.Password)
 			if err != nil {
 				return nil, err
@@ -66,8 +67,6 @@ func (o *ClusterUninstaller) deleteFolder(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
 
-	o.Logger.Debug("Delete Folder")
-
 	for _, client := range o.clients {
 		folderMoList, err := client.ListFolders(ctx, o.InfraID)
 		if err != nil {
@@ -82,7 +81,7 @@ func (o *ClusterUninstaller) deleteFolder(ctx context.Context) error {
 		// If there are no children in the folder, go ahead and remove it
 
 		for _, f := range folderMoList {
-			folderLogger := o.Logger.WithField("Folder", f.Name)
+			folderLogger := o.Logger.WithField("Folder", f.Name).WithField("vCenter", client.GetVCenterName())
 			if numChildren := len(f.ChildEntity); numChildren > 0 {
 				entities := make([]string, 0, numChildren)
 				for _, child := range f.ChildEntity {
@@ -108,9 +107,9 @@ func (o *ClusterUninstaller) deleteStoragePolicy(ctx context.Context) error {
 	defer cancel()
 
 	policyName := fmt.Sprintf("openshift-storage-policy-%s", o.InfraID)
-	policyLogger := o.Logger.WithField("StoragePolicy", policyName)
-	policyLogger.Debug("Delete")
 	for _, client := range o.clients {
+		policyLogger := o.Logger.WithField("StoragePolicy", policyName).WithField("vCenter", client.GetVCenterName())
+		policyLogger.Debug("Destroying")
 		err := client.DeleteStoragePolicy(ctx, policyName)
 		if err != nil {
 			policyLogger.Debug(err)
@@ -126,9 +125,9 @@ func (o *ClusterUninstaller) deleteTag(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*30)
 	defer cancel()
 
-	tagLogger := o.Logger.WithField("Tag", o.InfraID)
-	tagLogger.Debug("Delete")
 	for _, client := range o.clients {
+		tagLogger := o.Logger.WithField("Tag", o.InfraID).WithField("vCenter", client.GetVCenterName())
+		tagLogger.Debug("Delete")
 		err := client.DeleteTag(ctx, o.InfraID)
 		if err != nil {
 			tagLogger.Debug(err)
@@ -145,9 +144,9 @@ func (o *ClusterUninstaller) deleteTagCategory(ctx context.Context) error {
 	defer cancel()
 
 	categoryID := "openshift-" + o.InfraID
-	tcLogger := o.Logger.WithField("TagCategory", categoryID)
-	tcLogger.Debug("Delete")
 	for _, client := range o.clients {
+		tcLogger := o.Logger.WithField("TagCategory", categoryID).WithField("vCenter", client.GetVCenterName())
+		tcLogger.Debug("Delete")
 		err := client.DeleteTagCategory(ctx, categoryID)
 		if err != nil {
 			tcLogger.Errorln(err)
@@ -160,7 +159,8 @@ func (o *ClusterUninstaller) deleteTagCategory(ctx context.Context) error {
 }
 
 func (o *ClusterUninstaller) stopVirtualMachine(ctx context.Context, vmMO mo.VirtualMachine, client API) error {
-	virtualMachineLogger := o.Logger.WithField("VirtualMachine", vmMO.Name)
+	virtualMachineLogger := o.Logger.WithField("VirtualMachine", vmMO.Name).WithField("vCenter", client.GetVCenterName())
+	virtualMachineLogger.Debug("Powering off")
 	err := client.StopVirtualMachine(ctx, vmMO)
 	if err != nil {
 		virtualMachineLogger.Debug(err)
@@ -175,9 +175,9 @@ func (o *ClusterUninstaller) stopVirtualMachines(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*30)
 	defer cancel()
 
-	o.Logger.Debug("Power Off Virtual Machines")
 	var errs []error
 	for _, client := range o.clients {
+		o.Logger.Debug(fmt.Sprintf("Power Off Virtual Machines in vCenter %v", client.GetVCenterName()))
 		found, err := client.ListVirtualMachines(ctx, o.InfraID)
 		if err != nil {
 			o.Logger.Debug(err)
@@ -212,9 +212,9 @@ func (o *ClusterUninstaller) deleteVirtualMachines(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*30)
 	defer cancel()
 
-	o.Logger.Debug("Delete Virtual Machines")
 	var errs []error
 	for _, client := range o.clients {
+		o.Logger.Debug(fmt.Sprintf("Delete Virtual Machines in vCenter %v", client.GetVCenterName()))
 		found, err := client.ListVirtualMachines(ctx, o.InfraID)
 		if err != nil {
 			o.Logger.Debug(err)

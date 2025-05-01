@@ -40,10 +40,12 @@ type API interface {
 	DeleteHostZoneObjects(ctx context.Context, infraID string) error
 	DeleteCnsVolumes(ctx context.Context, volume cnstypes.CnsVolume) error
 	GetCnsVolumes(ctx context.Context, infraID string) ([]cnstypes.CnsVolume, error)
+	GetVCenterName() string
 }
 
 // Client makes calls to the Azure API.
 type Client struct {
+	vcenter    string
 	client     *vim25.Client
 	restClient *rest.Client
 	cnsClient  *cns.Client
@@ -70,6 +72,7 @@ func NewClient(vCenter, username, password string) (*Client, error) {
 	}
 
 	return &Client{
+		vcenter:    vCenter,
 		client:     vim25Client,
 		restClient: restClient,
 		cleanup:    cleanup,
@@ -137,6 +140,11 @@ func (c *Client) getFolderManagedObjects(ctx context.Context, moRef []types.Mana
 		}
 	}
 	return folderMoList, nil
+}
+
+// Get
+func (c *Client) GetVCenterName() string {
+	return c.vcenter
 }
 
 // ListFolders returns all ManagedObjects of type "Folder".
