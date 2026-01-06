@@ -73,13 +73,13 @@ func (o *ClusterUninstaller) deleteFolder(ctx context.Context) error {
 			return err
 		}
 
+		// If current client has no files found, log this fact, but continue back to next client.
 		if len(folderMoList) == 0 {
-			o.Logger.Debug("All folders deleted")
-			return nil
+			o.Logger.Debugf("No folders found for client %v", client.GetVCenterName())
+			continue
 		}
 
 		// If there are no children in the folder, go ahead and remove it
-
 		for _, f := range folderMoList {
 			folderLogger := o.Logger.WithField("Folder", f.Name).WithField("vCenter", client.GetVCenterName())
 			if numChildren := len(f.ChildEntity); numChildren > 0 {
