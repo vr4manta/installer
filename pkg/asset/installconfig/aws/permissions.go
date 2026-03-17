@@ -91,6 +91,12 @@ const (
 
 	// PermissionPassthroughCreds is a permission set required when using passthrough credentials.
 	PermissionPassthroughCreds PermissionGroup = "permission-passthrough-creds"
+
+	// PermissionDedicatedHosts is a permission set required when using user-provided dedicated hosts.
+	PermissionDedicatedHosts PermissionGroup = "permission-dedicated-hosts"
+
+	// PermissionDynamicHostAllocation is a permission set required when cleaning up dynamic hosts that were allocated during the life of the cluster.
+	PermissionDynamicHostAllocation PermissionGroup = "permission-dynamic-host-allocation"
 )
 
 var permissions = map[PermissionGroup][]string{
@@ -444,6 +450,20 @@ var permissions = map[PermissionGroup][]string{
 		"iam:GetUserPolicy",
 		"iam:ListAccessKeys",
 	},
+	PermissionDedicatedHosts: {
+		// Used when user-provided (BYO) dedicated hosts are configured in the install-config.yaml.
+		// This permission is required at install time to validate the hosts exist.
+		"ec2:DescribeHosts",
+	},
+	PermissionDynamicHostAllocation: {
+		// Used during cluster destroy when dynamic dedicated hosts are detected in the cluster.
+		// Dynamic hosts are allocated by the machine-api during day 2 operations and are not
+		// present in the install-config. The installer queries the cluster's Machine CRs to
+		// detect if any machines are using dedicated host allocation, and if so, validates
+		// that the user has permission to release them during cleanup.
+		"ec2:AllocateHosts",
+		"ec2:ReleaseHosts",
+	},
 }
 
 // ValidateCreds will try to create an AWS session, and also verify that the current credentials
@@ -584,6 +604,10 @@ func RequiredPermissionGroups(ic *types.InstallConfig) []PermissionGroup {
 
 	if includesEdgeDefaultInstanceType(ic) {
 		permissionGroups = append(permissionGroups, PermissionEdgeDefaultInstance)
+	}
+
+	if includesDedicatedHosts(ic) {
+		permissionGroups = append(permissionGroups, PermissionDedicatedHosts)
 	}
 
 	return permissionGroups
@@ -789,6 +813,19 @@ func includesEdgeDefaultInstanceType(installConfig *types.InstallConfig) bool {
 			continue
 		}
 		if mpool.Platform.AWS == nil || len(mpool.Platform.AWS.InstanceType) == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// includesDedicatedHosts checks if any dedicated hosts are specified for worker machine pools.
+func includesDedicatedHosts(installConfig *types.InstallConfig) bool {
+	for _, mpool := range installConfig.Compute {
+		if mpool.Name != types.MachinePoolComputeRoleName {
+			continue
+		}
+		if mpool.Platform.AWS != nil && mpool.Platform.AWS.HostPlacement != nil {
 			return true
 		}
 	}
