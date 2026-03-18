@@ -24,18 +24,25 @@ func New(logger logrus.FieldLogger, rootDir string) (providers.Destroyer, error)
 		return nil, errors.New("no platform configured in metadata")
 	}
 
-	// For AWS platforms, check for dynamic dedicated hosts and validate permissions
+	// For AWS platforms, perform comprehensive permission validation upfront
+	// This is similar to the permission checking done during cluster creation
 	if platform == awstypes.Name {
 		ctx := context.Background()
+
+		// Check if cluster has dynamic dedicated hosts
 		hasDynamicDHs, err := aws.HasDynamicDedicatedHosts(ctx, rootDir, logger)
 		if err != nil {
-			logger.WithError(err).Debug("Failed to check for dynamic dedicated hosts")
-		} else if hasDynamicDHs {
+			logger.WithError(err).Debug("Failed to check for dynamic dedicated hosts, continuing without dynamic DH permissions")
+			hasDynamicDHs = false
+		}
+		if hasDynamicDHs {
 			logger.Info("Dynamic dedicated hosts detected in cluster")
-			// Validate that user has necessary permissions to release hosts
-			if err := aws.ValidateDedicatedHostPermissions(ctx, clusterMetadata, logger); err != nil {
-				return nil, errors.Wrap(err, "insufficient permissions to destroy cluster with dynamic dedicated hosts")
-			}
+		}
+
+		// Validate AWS permissions for destroy operation
+		// This checks all required delete permissions plus dynamic DH permissions if needed
+		if err := aws.ValidateDestroyPermissions(ctx, clusterMetadata, hasDynamicDHs, logger); err != nil {
+			return nil, errors.Wrap(err, "AWS credential validation failed")
 		}
 	}
 

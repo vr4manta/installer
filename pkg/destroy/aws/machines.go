@@ -2,20 +2,15 @@ package aws
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
-
-	awssession "github.com/openshift/installer/pkg/asset/installconfig/aws"
-	"github.com/openshift/installer/pkg/types"
 )
 
 // HasDynamicDedicatedHosts checks if the cluster has any machines configured with dynamic dedicated host allocation.
@@ -92,47 +87,4 @@ func hasDedicatedHost(machine *unstructured.Unstructured) bool {
 	}
 
 	return found
-}
-
-// ValidateDedicatedHostPermissions validates that the user has the necessary permissions
-// to release dedicated hosts during cluster destruction.
-func ValidateDedicatedHostPermissions(ctx context.Context, metadata *types.ClusterMetadata, logger logrus.FieldLogger) error {
-	logger.Info("Validating permissions for dynamic dedicated host cleanup")
-
-	region := metadata.ClusterPlatformMetadata.AWS.Region
-	endpoints := metadata.AWS.ServiceEndpoints
-
-	// Create AWS config with region
-	awsConfig, err := awssession.GetConfigWithOptions(ctx, config.WithRegion(region))
-	if err != nil {
-		return fmt.Errorf("failed to get AWS config: %w", err)
-	}
-
-	// Build IAM endpoint URL
-	iamEndpoint := ""
-	for _, endpoint := range endpoints {
-		if endpoint.Name == "iam" {
-			iamEndpoint = endpoint.URL
-			break
-		}
-	}
-
-	// Validate that the user has permissions to allocate and release dedicated hosts
-	requiredPermissions := []string{
-		"ec2:DescribeHosts",
-		"ec2:AllocateHosts",
-		"ec2:ReleaseHosts",
-	}
-
-	// Use the same CCO validation logic used during install
-	if err := awssession.ValidateCreds(ctx, awsConfig, []awssession.PermissionGroup{
-		awssession.PermissionDedicatedHosts,
-		awssession.PermissionDynamicHostAllocation,
-	}, region, iamEndpoint); err != nil {
-		return fmt.Errorf("AWS credentials lack required permissions for dedicated host cleanup. Required permissions: %v. Error: %w",
-			requiredPermissions, err)
-	}
-
-	logger.Info("AWS credentials validated successfully for dedicated host cleanup")
-	return nil
 }
