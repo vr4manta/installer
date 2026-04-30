@@ -292,6 +292,11 @@ func newCreateCmd(ctx context.Context) *cobra.Command {
 		},
 	}
 
+	cmd.PersistentFlags().BoolVar(&command.UseVsphereCloudConfigIni, "vsphere-cloud-config-ini", false, "Generate vSphere cloud provider config in INI format (for testing day-2 migration)")
+	if err := cmd.PersistentFlags().MarkHidden("vsphere-cloud-config-ini"); err != nil {
+		logrus.Fatalf("Failed to mark vsphere-cloud-config-ini flag as hidden: %v", err)
+	}
+
 	for _, t := range targets {
 		t.command.Args = cobra.ExactArgs(0)
 		t.command.Run = runTargetCmd(ctx, t.assets...)

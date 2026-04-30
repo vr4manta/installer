@@ -13,6 +13,7 @@ import (
 	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	"sigs.k8s.io/yaml"
 
+	"github.com/openshift/installer/cmd/openshift-install/command"
 	"github.com/openshift/installer/pkg/asset"
 	"github.com/openshift/installer/pkg/asset/installconfig"
 	awsic "github.com/openshift/installer/pkg/asset/installconfig/aws"
@@ -386,7 +387,21 @@ NodeIPFamilies=ipv4
 		}
 		cm.Data[cloudProviderConfigDataKey] = powervsConfig
 	case vspheretypes.Name:
-		vsphereConfig, err := vspheremanifests.CloudProviderConfigYaml(clusterID.InfraID, installConfig.Config.Platform.VSphere)
+		var vsphereConfig string
+
+		// Hidden flag is used to generate older INI format to aid in testing day-2 operations and 3CMO migration of configurations
+		var err error
+		if command.UseVsphereCloudConfigIni {
+			// INI format requires at least one failure domain
+			if len(installConfig.Config.Platform.VSphere.FailureDomains) == 0 {
+				// Fall back to YAML format for configs without failure domains
+				vsphereConfig, err = vspheremanifests.CloudProviderConfigYaml(clusterID.InfraID, installConfig.Config.Platform.VSphere)
+			} else {
+				vsphereConfig, err = vspheremanifests.CloudProviderConfigIni(clusterID.InfraID, installConfig.Config.Platform.VSphere)
+			}
+		} else {
+			vsphereConfig, err = vspheremanifests.CloudProviderConfigYaml(clusterID.InfraID, installConfig.Config.Platform.VSphere)
+		}
 
 		if err != nil {
 			return errors.Wrap(err, "could not create cloud provider config")

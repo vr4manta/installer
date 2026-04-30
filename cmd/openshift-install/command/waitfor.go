@@ -59,6 +59,10 @@ const (
 // SkipPasswordPrintFlag when true means do not print the generated user password.
 var SkipPasswordPrintFlag bool
 
+// UseVsphereCloudConfigIni when true generates vSphere cloud provider config in INI format instead of YAML.
+// This is a hidden flag used for testing day-2 operations and migration scenarios.
+var UseVsphereCloudConfigIni bool
+
 // WaitOptions contains options for WaitForInstallComplete.
 type WaitOptions struct {
 	// ExtendTimeoutForBaremetal extends the initialization timeout for baremetal platforms.
